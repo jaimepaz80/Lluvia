@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -52,14 +53,19 @@
             width: 100%;
         }
 
-        .controls { display: grid; gap: 10px; margin-bottom: 20px; }
-        select, button.main-btn {
+        .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .search-row { display: flex; gap: 10px; }
+        
+        input[type="text"], button.main-btn {
             padding: 15px;
             border-radius: 12px;
             border: 1px solid #cbd5e1;
             font-size: 1rem;
-            width: 100%;
             box-sizing: border-box;
+        }
+        input[type="text"] {
+            flex: 1;
+            background: #f8fafc;
         }
         button.main-btn {
             background: var(--primary);
@@ -67,7 +73,10 @@
             border: none;
             font-weight: bold;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
+        button.main-btn:active { opacity: 0.8; }
+        button.gps-btn { background: var(--accent); width: 100%; }
 
         .info-panel {
             background: #f0f9ff;
@@ -103,7 +112,7 @@
             border: 1px solid #e2e8f0;
             margin-top: 10px;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1000px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1050px; }
         th, td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; }
         th { background: #f8fafc; font-weight: 800; color: var(--primary); }
 
@@ -133,38 +142,11 @@
     </div>
 
     <div class="controls">
-        <select id="locationSelect">
-            <optgroup label="Sensores">
-                <option value="gps">📍 Mi ubicación actual (GPS)</option>
-            </optgroup>
-            <optgroup label="Sur América">
-                <option value="10.06,-69.33">Barquisimeto, VEN</option>
-                <option value="10.48,-66.89">Caracas, VEN</option>
-                <option value="10.66,-71.66">Maracaibo, VEN</option>
-                <option value="4.71,-74.07">Bogotá, COL</option>
-                <option value="6.24,-75.58">Medellín, COL</option>
-                <option value="-12.04,-77.04">Lima, PER</option>
-                <option value="-2.18,-79.88">Guayaquil, ECU</option>
-                <option value="-0.18,-78.46">Quito, ECU</option>
-                <option value="-34.60,-58.38">Buenos Aires, ARG</option>
-                <option value="-15.79,-47.88">Brasilia, BRA</option>
-                <option value="-33.44,-70.66">Santiago, CHI</option>
-                <option value="-16.50,-68.11">La Paz, BOL</option>
-                <option value="-25.26,-57.57">Asunción, PAR</option>
-                <option value="-34.90,-56.16">Montevideo, URU</option>
-            </optgroup>
-            <optgroup label="Centro América & Caribe">
-                <option value="9.00,-79.51">Panamá, PAN</option>
-                <option value="9.92,-84.08">San José, CRC</option>
-                <option value="12.11,-86.23">Managua, NIC</option>
-                <option value="14.08,-87.20">Tegucigalpa, HON</option>
-                <option value="13.69,-89.21">San Salvador, SLV</option>
-                <option value="14.61,-90.50">Guatemala, GTM</option>
-                <option value="19.43,-99.13">CDMX, MEX</option>
-                <option value="18.48,-69.93">Santo Domingo, DOM</option>
-            </optgroup>
-        </select>
-        <button class="main-btn" id="fetchBtn">Consultar Diagnóstico Completo</button>
+        <button class="main-btn gps-btn" id="gpsBtn">📍 Usar mi ubicación actual (GPS)</button>
+        <div class="search-row">
+            <input type="text" id="cityInput" placeholder="Ej. Carora, Maracaibo, Lima...">
+            <button class="main-btn" id="searchBtn">🔍 Buscar</button>
+        </div>
     </div>
 
     <div id="locationDisplay" class="info-panel" style="display:none">
@@ -186,7 +168,7 @@
                         <th>Rad (MJ/m²)</th>
                         <th>Evap (mm)</th>
                         <th>Amanecer</th>
-                    </tr>
+                        <th>Atardecer</th> </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
             </table>
@@ -202,13 +184,16 @@
 <script>
     let alertsEnabled = false;
     let monitoringInterval = null;
-    const audioAlert = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6cXV4AAA='); // Pitido sintético corto
+    let lastLat = null;
+    let lastLon = null;
+    const audioAlert = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6cXV4AAA=');
 
     const enableAlertsBtn = document.getElementById('enableAlertsBtn');
-    const fetchBtn = document.getElementById('fetchBtn');
-    const locationSelect = document.getElementById('locationSelect');
+    const gpsBtn = document.getElementById('gpsBtn');
+    const searchBtn = document.getElementById('searchBtn');
+    const cityInput = document.getElementById('cityInput');
 
-    // Inicializar Notificaciones y Audio
+    // Inicializar Notificaciones
     enableAlertsBtn.addEventListener('click', () => {
         Notification.requestPermission().then(perm => {
             if(perm === 'granted') {
@@ -216,29 +201,72 @@
                 document.getElementById('permissionPanel').style.display = 'none';
                 document.getElementById('alarmStatus').innerText = "🔴 Sistema de Alertas Activo";
                 document.getElementById('alarmStatus').style.color = "var(--danger)";
-                // Reproducir sonido silencioso para desbloquear audio
                 audioAlert.play().catch(()=>{});
                 startMonitoring();
             }
         });
     });
 
-    fetchBtn.addEventListener('click', executeDiagnostic);
+    // Acción de GPS
+    gpsBtn.addEventListener('click', () => {
+        document.getElementById('town').innerText = "Obteniendo coordenadas...";
+        navigator.geolocation.getCurrentPosition(
+            p => fetchWeather(p.coords.latitude, p.coords.longitude, null),
+            e => alert("Error al acceder al GPS. Verifique los permisos.")
+        );
+    });
 
-    function executeDiagnostic() {
-        const val = locationSelect.value;
-        if(val === 'gps') {
-            navigator.geolocation.getCurrentPosition(p => fetchWeather(p.coords.latitude, p.coords.longitude));
-        } else {
-            const [la, lo] = val.split(',').map(Number);
-            fetchWeather(la, lo);
+    // Acción de Búsqueda de Ciudad
+    searchBtn.addEventListener('click', async () => {
+        const query = cityInput.value.trim();
+        if(!query) return alert("Por favor escriba una ciudad.");
+        
+        document.getElementById('town').innerText = "Buscando en la base de datos global...";
+        searchBtn.disabled = true;
+
+        try {
+            // API de Geocodificación de Open-Meteo
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es`);
+            const geoData = await geoRes.json();
+            
+            if(!geoData.results || geoData.results.length === 0) {
+                alert("Ciudad no encontrada. Intente con otro nombre.");
+                searchBtn.disabled = false;
+                return;
+            }
+            
+            const city = geoData.results[0];
+            const cityName = `${city.name}, ${city.country || ''}`;
+            fetchWeather(city.latitude, city.longitude, cityName);
+        } catch (e) {
+            alert("Error al buscar la ciudad.");
+        } finally {
+            searchBtn.disabled = false;
         }
-    }
+    });
 
-    async function fetchWeather(lat, lon) {
+    // Función principal de extracción de datos
+    async function fetchWeather(lat, lon, knownCityName) {
+        lastLat = lat;
+        lastLon = lon;
+        
         document.getElementById('coords').innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         document.getElementById('locationDisplay').style.display = 'block';
+        
+        // Si no conocemos el nombre (porque viene de GPS), hacemos Geocodificación Inversa
+        if (!knownCityName) {
+            document.getElementById('town').innerText = "Traduciendo coordenadas a poblado...";
+            try {
+                const reverseGeoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
+                const reverseGeoData = await reverseGeoRes.json();
+                knownCityName = reverseGeoData.address.city || reverseGeoData.address.town || reverseGeoData.address.village || reverseGeoData.address.county || "Área Geográfica Desconocida";
+            } catch (e) {
+                knownCityName = "Poblado no identificado";
+            }
+        }
+        document.getElementById('town').innerText = knownCityName;
 
+        // Petición de Clima
         const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,shortwave_radiation_sum,et0_fao_evapotranspiration,sunrise,sunset&hourly=precipitation&timezone=auto&forecast_days=16`;
 
         try {
@@ -246,9 +274,12 @@
             const data = await res.json();
             renderData(data);
             checkImmediateRain(data.hourly);
-        } catch (e) { alert("Error de red."); }
+        } catch (e) { 
+            alert("Error conectando con los satélites meteorológicos."); 
+        }
     }
 
+    // Renderizado de UI
     function renderData(data) {
         const daily = data.daily;
         const cardList = document.getElementById('cardList');
@@ -259,6 +290,8 @@
 
         daily.time.forEach((t, i) => {
             const date = new Date(t + "T00:00:00");
+            
+            // Render Tarjetas
             cardList.innerHTML += `
                 <div class="card">
                     <div class="date">${date.toLocaleDateString('es', {weekday:'short', day:'numeric'})}</div>
@@ -266,6 +299,8 @@
                     <div style="color:var(--accent); font-weight:bold">💧 ${daily.precipitation_probability_max[i]}%</div>
                 </div>
             `;
+            
+            // Render Tabla con Atardecer restaurado
             tableBody.innerHTML += `
                 <tr>
                     <td>${t}</td>
@@ -276,17 +311,16 @@
                     <td>${daily.shortwave_radiation_sum[i]}</td>
                     <td>${daily.et0_fao_evapotranspiration[i]}</td>
                     <td>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                    <td>${new Date(daily.sunset[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                 </tr>
             `;
         });
     }
 
-    // Lógica de Alerta de Lluvia Inminente
+    // Lógica de Alerta
     function checkImmediateRain(hourly) {
         const now = new Date();
         const nextHour = new Date(now.getTime() + (60 * 60 * 1000));
-        
-        // Buscar el índice de la próxima hora en el reporte
         const index = hourly.time.findIndex(t => new Date(t).getTime() >= nextHour.getTime());
         
         if(index !== -1 && hourly.precipitation[index] > 0) {
@@ -296,14 +330,11 @@
 
     function triggerAlert(amount) {
         if(!alertsEnabled) return;
-
-        // Notificación Visual
         new Notification("⚠️ ALERTA DE LLUVIA", {
-            body: `Se detecta precipitación inminente (${amount}mm) en la próxima hora. Tome previsiones en sus estanques.`,
+            body: `Se detecta precipitación inminente (${amount}mm) en la próxima hora. Tome previsiones.`,
             icon: "https://cdn-icons-png.flaticon.com/512/3217/3217112.png"
         });
 
-        // Alerta Sonora (Beep repetitivo)
         let count = 0;
         const interval = setInterval(() => {
             audioAlert.play();
@@ -314,12 +345,11 @@
 
     function startMonitoring() {
         if(monitoringInterval) clearInterval(monitoringInterval);
-        // Monitorear cada 30 minutos
-        monitoringInterval = setInterval(executeDiagnostic, 30 * 60 * 1000);
+        monitoringInterval = setInterval(() => {
+            if(lastLat && lastLon) fetchWeather(lastLat, lastLon, document.getElementById('town').innerText);
+        }, 30 * 60 * 1000);
     }
 </script>
 
 </body>
 </html>
-
-

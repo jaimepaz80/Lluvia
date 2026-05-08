@@ -107,6 +107,15 @@
         th { background: #f8fafc; font-weight: 800; color: var(--primary); }
         .category-header { background: #eff6ff; font-weight: bold; color: var(--primary); border-left: 2px solid var(--accent); }
 
+        .legend-panel {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
         .footer { text-align: center; margin-top: 30px; font-size: 0.85rem; color: #64748b; padding-top: 20px; border-top: 1px solid #f1f5f9; }
         .whatsapp-link {
             display: inline-flex; align-items: center; justify-content: center; background-color: var(--whatsapp);
@@ -175,6 +184,17 @@
                 </thead>
                 <tbody id="tableBody"></tbody>
             </table>
+        </div>
+        
+        <div class="legend-panel">
+            <h4 style="margin-top:0; color:var(--primary); font-size: 1rem;">📚 Leyenda Técnica - Interpretación de Datos</h4>
+            <ul style="margin:0; padding-left: 20px; font-size: 0.85rem; color: #475569; line-height: 1.6;">
+                <li><strong>Estado vs. Prob. %:</strong> La <em>Probabilidad (%)</em> indica la certeza matemática de que llueva. El <em>Estado</em> clasifica la severidad del evento. Ej: Una "Tormenta al 30%" indica que es poco probable que te alcance, pero si lo hace, será severa. Una "Llovizna al 90%" es la certeza casi absoluta de una lluvia muy fina y de bajo impacto.</li>
+                <li><strong>Total mm vs. Chubascos:</strong> <em>Total mm</em> es el volumen acumulado de agua en todo el día. <em>Chubascos</em> mide qué cantidad de ese volumen caerá en forma de lluvias intensas, repentinas y localizadas.</li>
+                <li><strong>Luz Efect. (Luz Efectiva):</strong> Horas reales de radiación solar directa sin la interferencia de cobertura nubosa. Dato crítico para la fotosíntesis del fitoplancton.</li>
+                <li><strong>Evap (mm):</strong> Evapotranspiración diaria estimada. Indica la pérdida de la columna de agua, vital para calcular tasas de reposición y balances hídricos.</li>
+                <li><strong>Dir. ° (Dirección del Viento):</strong> Orientación de origen del viento en grados (0° = Norte, 90° = Este, 180° = Sur, 270° = Oeste). Fundamental para ubicar aireadores y calcular el arrastre superficial (fetch).</li>
+            </ul>
         </div>
     </div>
 
@@ -319,4 +339,5 @@
 </script>
 </body>
 </html>
+
 

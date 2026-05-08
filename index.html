@@ -3,118 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estación Meteorológica Virtual - Jaime Ulises Paz López</title>
+    <title>Monitor Meteorológico Profesional - Jaime Ulises Paz López</title>
     <style>
         :root {
             --primary: #1e40af;
             --accent: #0ea5e9;
-            --bg: #f1f5f9;
-            --card-bg: #ffffff;
-            --text: #1e293b;
+            --danger: #e11d48;
+            --bg: #f8fafc;
+            --card: #ffffff;
         }
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg);
-            color: var(--text);
+            color: #1e293b;
             margin: 0;
-            padding: 15px;
+            padding: 10px;
             display: flex;
             justify-content: center;
         }
         .app-container {
             width: 100%;
-            max-width: 800px;
-            background: var(--card-bg);
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            max-width: 900px;
+            background: var(--card);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
             padding: 20px;
             box-sizing: border-box;
         }
-        header { text-align: center; margin-bottom: 20px; }
-        header h1 { margin: 0; font-size: 1.4rem; color: var(--primary); }
-        
-        /* Controles de Selección */
-        .controls {
-            display: grid;
-            gap: 10px;
+        header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
+        header h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+
+        .alert-panel {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            border-radius: 12px;
+            padding: 15px;
             margin-bottom: 20px;
+            text-align: center;
         }
-        select, button {
-            padding: 14px;
-            border-radius: 10px;
+        .alert-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .controls { display: grid; gap: 10px; margin-bottom: 20px; }
+        select, button.main-btn {
+            padding: 15px;
+            border-radius: 12px;
             border: 1px solid #cbd5e1;
             font-size: 1rem;
             width: 100%;
             box-sizing: border-box;
         }
-        button {
+        button.main-btn {
             background: var(--primary);
             color: white;
             border: none;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.3s;
         }
-        button:disabled { background: #94a3b8; }
 
         .info-panel {
-            background: #f8fafc;
-            border-radius: 12px;
+            background: #f0f9ff;
+            border-left: 5px solid var(--accent);
             padding: 15px;
+            border-radius: 8px;
             margin-bottom: 20px;
             font-size: 0.9rem;
-            border-left: 5px solid var(--accent);
         }
 
-        /* Tarjetas Horizontales */
         .cards-scroll {
             display: flex;
             gap: 12px;
             overflow-x: auto;
             padding-bottom: 15px;
-            margin-bottom: 25px;
             scrollbar-width: thin;
         }
         .card {
-            min-width: 130px;
+            min-width: 140px;
             background: white;
             border: 1px solid #e2e8f0;
             padding: 15px;
-            border-radius: 15px;
+            border-radius: 16px;
             text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
-        .card .date { font-weight: bold; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; }
-        .card .temp { font-size: 1.2rem; font-weight: 800; color: #ef4444; }
-        .card .rain { color: var(--accent); font-weight: bold; margin-top: 5px; }
+        .card .date { font-weight: bold; font-size: 0.8rem; color: #64748b; }
+        .card .temp { font-size: 1.3rem; font-weight: 800; color: #ef4444; margin: 5px 0; }
 
-        /* Tabla de Datos */
         .table-wrapper {
             overflow-x: auto;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
+            margin-top: 10px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-            min-width: 800px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: center;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        th { background: #f8fafc; color: var(--primary); font-weight: 800; position: sticky; top: 0; }
-        tr:nth-child(even) { background: #fdfdfd; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1000px; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8fafc; font-weight: 800; color: var(--primary); }
 
         .footer {
             text-align: center;
             margin-top: 30px;
             font-size: 0.75rem;
             color: #94a3b8;
+            padding-top: 20px;
             border-top: 1px solid #f1f5f9;
-            padding-top: 15px;
         }
     </style>
 </head>
@@ -123,33 +122,58 @@
 <div class="app-container">
     <header>
         <h1>Estación Virtual Acuícola</h1>
-        <small>Control Meteorológico de Precisión</small>
+        <div id="alarmStatus" style="font-size: 0.8rem; color: #64748b;">Sistema de Monitoreo Pasivo</div>
     </header>
 
+    <div class="alert-panel" id="permissionPanel">
+        <div style="font-size: 0.85rem; margin-bottom: 10px; color: #be123c;">
+            <strong>⚠️ Alertas Desactivadas:</strong> Se requiere permiso para notificar lluvia inminente con sonido.
+        </div>
+        <button class="alert-btn" id="enableAlertsBtn">Activar Sistema de Alertas</button>
+    </div>
+
     <div class="controls">
-        <select id="citySelect">
-            <option value="gps">📍 Mi ubicación actual (GPS)</option>
-            <option value="10.0667,-69.3333">Barquisimeto, VZLA</option>
-            <option value="10.4806,-66.8989">Caracas, VZLA</option>
-            <option value="10.6667,-71.6667">Maracaibo, VZLA</option>
-            <option value="8.5833,-71.1333">Mérida, VZLA</option>
-            <option value="-12.0464,-77.0428">Lima, PERÚ</option>
-            <option value="4.7110,-74.0721">Bogotá, COL</option>
-            <option value="19.4326,-99.1332">Ciudad de México, MEX</option>
+        <select id="locationSelect">
+            <optgroup label="Sensores">
+                <option value="gps">📍 Mi ubicación actual (GPS)</option>
+            </optgroup>
+            <optgroup label="Sur América">
+                <option value="10.06,-69.33">Barquisimeto, VEN</option>
+                <option value="10.48,-66.89">Caracas, VEN</option>
+                <option value="10.66,-71.66">Maracaibo, VEN</option>
+                <option value="4.71,-74.07">Bogotá, COL</option>
+                <option value="6.24,-75.58">Medellín, COL</option>
+                <option value="-12.04,-77.04">Lima, PER</option>
+                <option value="-2.18,-79.88">Guayaquil, ECU</option>
+                <option value="-0.18,-78.46">Quito, ECU</option>
+                <option value="-34.60,-58.38">Buenos Aires, ARG</option>
+                <option value="-15.79,-47.88">Brasilia, BRA</option>
+                <option value="-33.44,-70.66">Santiago, CHI</option>
+                <option value="-16.50,-68.11">La Paz, BOL</option>
+                <option value="-25.26,-57.57">Asunción, PAR</option>
+                <option value="-34.90,-56.16">Montevideo, URU</option>
+            </optgroup>
+            <optgroup label="Centro América & Caribe">
+                <option value="9.00,-79.51">Panamá, PAN</option>
+                <option value="9.92,-84.08">San José, CRC</option>
+                <option value="12.11,-86.23">Managua, NIC</option>
+                <option value="14.08,-87.20">Tegucigalpa, HON</option>
+                <option value="13.69,-89.21">San Salvador, SLV</option>
+                <option value="14.61,-90.50">Guatemala, GTM</option>
+                <option value="19.43,-99.13">CDMX, MEX</option>
+                <option value="18.48,-69.93">Santo Domingo, DOM</option>
+            </optgroup>
         </select>
-        <button id="updateBtn">Consultar Diagnóstico Técnico</button>
+        <button class="main-btn" id="fetchBtn">Consultar Diagnóstico Completo</button>
     </div>
 
     <div id="locationDisplay" class="info-panel" style="display:none">
-        <strong>📍 Ubicación:</strong> <span id="townName">Cargando...</span><br>
-        <strong>🌐 Coordenadas:</strong> <span id="lat">0</span>, <span id="lon">0</span>
+        <strong>🌐 Área de Análisis:</strong> <span id="town">Calculando...</span><br>
+        <strong>📡 Coordenadas:</strong> <span id="coords">--</span>
     </div>
 
     <div id="results" style="display:none">
-        <h3 style="font-size: 1rem; margin-bottom: 10px;">Resumen 16 Días:</h3>
         <div class="cards-scroll" id="cardList"></div>
-
-        <h3 style="font-size: 1rem; margin-bottom: 10px;">Desglose Técnico:</h3>
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -159,10 +183,9 @@
                         <th>Lluvia %</th>
                         <th>Viento (km/h)</th>
                         <th>UV</th>
-                        <th>Radiación (MJ/m²)</th>
+                        <th>Rad (MJ/m²)</th>
                         <th>Evap (mm)</th>
                         <th>Amanecer</th>
-                        <th>Atardecer</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -171,105 +194,132 @@
     </div>
 
     <div class="footer">
-        Autor: <strong>Jaime Ulises Paz López</strong><br>
-        Ingeniero Especialista en Infraestructuras Acuícolas
+        Acreditación Técnica: <strong>Jaime Ulises Paz López</strong><br>
+        Especialista en Sistemas Biofloc, RAS y Diseño Hidráulico
     </div>
 </div>
 
 <script>
-    const updateBtn = document.getElementById('updateBtn');
-    const citySelect = document.getElementById('citySelect');
-    const resultsDiv = document.getElementById('results');
-    const locationDiv = document.getElementById('locationDisplay');
+    let alertsEnabled = false;
+    let monitoringInterval = null;
+    const audioAlert = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6cXV4AAA='); // Pitido sintético corto
 
-    updateBtn.addEventListener('click', () => {
-        const value = citySelect.value;
-        updateBtn.disabled = true;
-        updateBtn.innerText = "Procesando datos...";
+    const enableAlertsBtn = document.getElementById('enableAlertsBtn');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const locationSelect = document.getElementById('locationSelect');
 
-        if (value === 'gps') {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-                (err) => { alert("Error al obtener GPS"); updateBtn.disabled = false; }
-            );
-        } else {
-            const [lat, lon] = value.split(',').map(Number);
-            fetchWeather(lat, lon);
-        }
+    // Inicializar Notificaciones y Audio
+    enableAlertsBtn.addEventListener('click', () => {
+        Notification.requestPermission().then(perm => {
+            if(perm === 'granted') {
+                alertsEnabled = true;
+                document.getElementById('permissionPanel').style.display = 'none';
+                document.getElementById('alarmStatus').innerText = "🔴 Sistema de Alertas Activo";
+                document.getElementById('alarmStatus').style.color = "var(--danger)";
+                // Reproducir sonido silencioso para desbloquear audio
+                audioAlert.play().catch(()=>{});
+                startMonitoring();
+            }
+        });
     });
 
-    async function fetchWeather(lat, lon) {
-        document.getElementById('lat').innerText = lat.toFixed(4);
-        document.getElementById('lon').innerText = lon.toFixed(4);
-        locationDiv.style.display = 'block';
+    fetchBtn.addEventListener('click', executeDiagnostic);
 
-        // 1. Obtener nombre del poblado
-        try {
-            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
-            const geoData = await geoRes.json();
-            document.getElementById('townName').innerText = geoData.address.city || geoData.address.town || geoData.address.village || "Área Rural";
-        } catch (e) { document.getElementById('townName').innerText = "Coordenadas Manuales"; }
-
-        // 2. Obtener Parámetros Técnicos
-        const params = [
-            'temperature_2m_max', 'temperature_2m_min',
-            'precipitation_probability_max', 'wind_speed_10m_max',
-            'wind_direction_10m_dominant', 'shortwave_radiation_sum',
-            'et0_fao_evapotranspiration', 'uv_index_max', 'sunrise', 'sunset'
-        ].join(',');
-
-        try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${params}&timezone=auto&forecast_days=16`);
-            const data = await res.json();
-            renderUI(data.daily);
-        } catch (e) {
-            alert("Error de conexión con el satélite.");
-        } finally {
-            updateBtn.disabled = false;
-            updateBtn.innerText = "Consultar Diagnóstico Técnico";
+    function executeDiagnostic() {
+        const val = locationSelect.value;
+        if(val === 'gps') {
+            navigator.geolocation.getCurrentPosition(p => fetchWeather(p.coords.latitude, p.coords.longitude));
+        } else {
+            const [la, lo] = val.split(',').map(Number);
+            fetchWeather(la, lo);
         }
     }
 
-    function renderUI(daily) {
+    async function fetchWeather(lat, lon) {
+        document.getElementById('coords').innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        document.getElementById('locationDisplay').style.display = 'block';
+
+        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,shortwave_radiation_sum,et0_fao_evapotranspiration,sunrise,sunset&hourly=precipitation&timezone=auto&forecast_days=16`;
+
+        try {
+            const res = await fetch(api);
+            const data = await res.json();
+            renderData(data);
+            checkImmediateRain(data.hourly);
+        } catch (e) { alert("Error de red."); }
+    }
+
+    function renderData(data) {
+        const daily = data.daily;
         const cardList = document.getElementById('cardList');
         const tableBody = document.getElementById('tableBody');
         cardList.innerHTML = '';
         tableBody.innerHTML = '';
-        resultsDiv.style.display = 'block';
+        document.getElementById('results').style.display = 'block';
 
-        daily.time.forEach((time, i) => {
-            const date = new Date(time + "T00:00:00");
-            const dateLabel = date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
-            
-            // Renderizar Tarjeta
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <div class="date">${dateLabel}</div>
-                <div class="temp">${Math.round(daily.temperature_2m_max[i])}°C</div>
-                <div class="rain">💧 ${daily.precipitation_probability_max[i]}%</div>
-                <div style="font-size:0.7rem; color:#94a3b8; margin-top:5px;">Viento: ${daily.wind_speed_10m_max[i]}km/h</div>
+        daily.time.forEach((t, i) => {
+            const date = new Date(t + "T00:00:00");
+            cardList.innerHTML += `
+                <div class="card">
+                    <div class="date">${date.toLocaleDateString('es', {weekday:'short', day:'numeric'})}</div>
+                    <div class="temp">${Math.round(daily.temperature_2m_max[i])}°C</div>
+                    <div style="color:var(--accent); font-weight:bold">💧 ${daily.precipitation_probability_max[i]}%</div>
+                </div>
             `;
-            cardList.appendChild(card);
-
-            // Renderizar Fila de Tabla
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td><b>${time}</b></td>
-                <td>${daily.temperature_2m_max[i]} / ${daily.temperature_2m_min[i]} °C</td>
-                <td style="color:blue">${daily.precipitation_probability_max[i]}%</td>
-                <td>${daily.wind_speed_10m_max[i]} <small>(Dir: ${daily.wind_direction_10m_dominant[i]}°)</small></td>
-                <td><b style="color:orange">${daily.uv_index_max[i]}</b></td>
-                <td>${daily.shortwave_radiation_sum[i]}</td>
-                <td><b style="color:green">${daily.et0_fao_evapotranspiration[i]}</b></td>
-                <td>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                <td>${new Date(daily.sunset[i]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${t}</td>
+                    <td>${daily.temperature_2m_max[i]} / ${daily.temperature_2m_min[i]} °C</td>
+                    <td>${daily.precipitation_probability_max[i]}%</td>
+                    <td>${daily.wind_speed_10m_max[i]}</td>
+                    <td>${daily.uv_index_max[i]}</td>
+                    <td>${daily.shortwave_radiation_sum[i]}</td>
+                    <td>${daily.et0_fao_evapotranspiration[i]}</td>
+                    <td>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                </tr>
             `;
-            tableBody.appendChild(row);
         });
+    }
+
+    // Lógica de Alerta de Lluvia Inminente
+    function checkImmediateRain(hourly) {
+        const now = new Date();
+        const nextHour = new Date(now.getTime() + (60 * 60 * 1000));
+        
+        // Buscar el índice de la próxima hora en el reporte
+        const index = hourly.time.findIndex(t => new Date(t).getTime() >= nextHour.getTime());
+        
+        if(index !== -1 && hourly.precipitation[index] > 0) {
+            triggerAlert(hourly.precipitation[index]);
+        }
+    }
+
+    function triggerAlert(amount) {
+        if(!alertsEnabled) return;
+
+        // Notificación Visual
+        new Notification("⚠️ ALERTA DE LLUVIA", {
+            body: `Se detecta precipitación inminente (${amount}mm) en la próxima hora. Tome previsiones en sus estanques.`,
+            icon: "https://cdn-icons-png.flaticon.com/512/3217/3217112.png"
+        });
+
+        // Alerta Sonora (Beep repetitivo)
+        let count = 0;
+        const interval = setInterval(() => {
+            audioAlert.play();
+            count++;
+            if(count > 3) clearInterval(interval);
+        }, 1000);
+    }
+
+    function startMonitoring() {
+        if(monitoringInterval) clearInterval(monitoringInterval);
+        // Monitorear cada 30 minutos
+        monitoringInterval = setInterval(executeDiagnostic, 30 * 60 * 1000);
     }
 </script>
 
 </body>
 </html>
+
 

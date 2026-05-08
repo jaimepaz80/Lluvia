@@ -270,7 +270,9 @@
             try {
                 const reverseGeoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                 const reverseGeoData = await reverseGeoRes.json();
-                knownCityName = reverseGeoData.address.city || reverseGeoData.address.town || reverseGeoData.address.village || "Área Geográfica";
+                const addr = reverseGeoData.address || {};
+                // Modificación quirúrgica: Extensión de variables geográficas para zonas rurales
+                knownCityName = addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.municipality || addr.state || "Área Geográfica Desconocida";
             } catch (e) { knownCityName = "Ubicación GPS"; }
         }
         document.getElementById('town').innerText = knownCityName;

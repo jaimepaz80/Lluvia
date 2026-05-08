@@ -3,185 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pronóstico de Lluvia 24H</title>
+    <title>Sistema de Monitoreo Pluvial - 16 Días</title>
     <style>
         :root {
-            --primary-color: #007BFF;
-            --bg-color: #f4f7f6;
-            --text-color: #333;
+            --primary: #2563eb;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --accent: #0ea5e9;
         }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
             margin: 0;
-            padding: 0;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            text-align: center;
+            padding: 20px;
         }
-        .container {
+        .app-card {
             background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 90%;
-            max-width: 400px;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 24px;
+            overflow: hidden;
         }
-        h1 {
-            font-size: 1.5rem;
-            margin-top: 0;
-            color: #2c3e50;
+        header { text-align: center; margin-bottom: 24px; }
+        header h1 { margin: 0; color: var(--primary); font-size: 1.6rem; }
+        
+        .location-box {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 0.9rem;
         }
-        p {
-            font-size: 0.95rem;
-            color: #666;
-            margin-bottom: 2rem;
-        }
+        .coord-label { font-weight: bold; color: var(--primary); }
+
         button {
-            background-color: var(--primary-color);
+            background: var(--primary);
             color: white;
             border: none;
-            padding: 15px 20px;
-            font-size: 1.1rem;
-            border-radius: 8px;
-            cursor: pointer;
             width: 100%;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        #result {
-            margin-top: 20px;
+            padding: 16px;
+            border-radius: 12px;
             font-size: 1.1rem;
-            min-height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 20px;
         }
-        .rain-yes { color: #d9534f; font-weight: bold; }
-        .rain-no { color: #5cb85c; font-weight: bold; }
-        .error { color: #f0ad4e; font-weight: bold; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #94a3b8; }
+
+        .forecast-container {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 15px;
+            margin-top: 10px;
+            scrollbar-width: thin;
+        }
+        .forecast-card {
+            min-width: 110px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .day-name { font-weight: bold; font-size: 0.85rem; color: #64748b; text-transform: uppercase; }
+        .temp { font-size: 1.1rem; font-weight: 700; margin: 8px 0; }
+        .rain-prob { font-size: 0.8rem; color: var(--primary); font-weight: 600; }
+
+        .footer-credit {
+            margin-top: 25px;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-align: center;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 15px;
+        }
+        #status { font-size: 0.9rem; text-align: center; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>¿Lloverá hoy?</h1>
-        <p>Descubre si habrá precipitaciones en tu ubicación durante las próximas 24 horas.</p>
-        
-        <button id="checkWeatherBtn">Consultar Pronóstico</button>
-        
-        <div id="result"></div>
+<div class="app-card">
+    <header>
+        <h1>Pronóstico Avanzado</h1>
+        <p style="color: #64748b; font-size: 0.9rem;">Análisis Meteorológico Multi-Día</p>
+    </header>
+
+    <div id="location-info" class="location-box" style="display: none;">
+        <div><span class="coord-label">Poblado:</span> <span id="town">Buscando...</span></div>
+        <div style="margin-top: 5px;">
+            <span class="coord-label">Lat:</span> <span id="lat-val">0</span> | 
+            <span class="coord-label">Lon:</span> <span id="lon-val">0</span>
+        </div>
     </div>
 
-    <script>
-        const button = document.getElementById('checkWeatherBtn');
-        const resultDiv = document.getElementById('result');
+    <div id="status">Presione el botón para iniciar</div>
+    <button id="mainBtn">Obtener Diagnóstico</button>
 
-        button.addEventListener('click', () => {
-            // Limpiar resultados anteriores
-            resultDiv.innerHTML = 'Solicitando permisos de ubicación...';
-            resultDiv.className = '';
-            button.disabled = true;
+    <div id="forecast-wrapper" style="display: none;">
+        <h3 style="font-size: 1rem; margin-bottom: 10px;">Pronóstico de 16 Días:</h3>
+        <div class="forecast-container" id="forecast-list"></div>
+    </div>
 
-            // Verificar soporte de geolocalización
-            if (!navigator.geolocation) {
-                showResult("La geolocalización no es compatible con tu navegador.", "error");
-                button.disabled = false;
-                return;
-            }
+    <div class="footer-credit">
+        Desarrollado para: <strong>Jaime Ulises Paz López</strong><br>
+        Especialista en Ingeniería y Acuicultura
+    </div>
+</div>
 
-            // Solicitar ubicación
-            navigator.geolocation.getCurrentPosition(successLocation, errorLocation, {
-                enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 0
-            });
-        });
+<script>
+    const mainBtn = document.getElementById('mainBtn');
+    const statusTxt = document.getElementById('status');
+    const locationBox = document.getElementById('location-info');
+    const forecastWrapper = document.getElementById('forecast-wrapper');
+    const forecastList = document.getElementById('forecast-list');
 
-        function successLocation(position) {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            resultDiv.innerHTML = 'Ubicación obtenida. Consultando el clima...';
-            checkRainForecast(lat, lon);
+    mainBtn.addEventListener('click', () => {
+        statusTxt.innerText = "Localizando dispositivo...";
+        mainBtn.disabled = true;
+        
+        if (!navigator.geolocation) {
+            statusTxt.innerText = "Error: Geolocalización no soportada.";
+            mainBtn.disabled = false;
+            return;
         }
 
-        function errorLocation(err) {
-            let msg = "No se pudo obtener la ubicación.";
-            if (err.code === 1) msg = "Permiso de ubicación denegado por el usuario.";
-            if (err.code === 2) msg = "Ubicación no disponible.";
-            if (err.code === 3) msg = "Tiempo de espera agotado al buscar ubicación.";
-            
-            showResult(msg, "error");
-            button.disabled = false;
-        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
 
-        async function checkRainForecast(lat, lon) {
-            // Usamos Open-Meteo API. Pedimos 2 días para garantizar 24 horas hacia adelante.
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation&timezone=auto&forecast_days=2`;
+            document.getElementById('lat-val').innerText = lat.toFixed(4);
+            document.getElementById('lon-val').innerText = lon.toFixed(4);
+            locationBox.style.display = 'block';
 
+            // 1. Obtener Poblado (Reverse Geocoding)
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("Error en la respuesta de la API");
-                
-                const data = await response.json();
-                analyzeData(data);
-            } catch (error) {
-                showResult("Error al conectar con el servidor meteorológico.", "error");
-                button.disabled = false;
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
+                const geoData = await geoRes.json();
+                const town = geoData.address.city || geoData.address.town || geoData.address.village || geoData.address.county || "Ubicación Desconocida";
+                document.getElementById('town').innerText = town;
+            } catch (e) {
+                document.getElementById('town').innerText = "Error al obtener poblado";
             }
-        }
 
-        function analyzeData(data) {
-            const times = data.hourly.time;
-            const precipitation = data.hourly.precipitation;
-            const nowMs = Date.now();
+            // 2. Obtener Clima (16 días)
+            statusTxt.innerText = "Consultando satélites meteorológicos...";
+            try {
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=16`);
+                const weatherData = await weatherRes.json();
+                renderForecast(weatherData.daily);
+            } catch (e) {
+                statusTxt.innerText = "Error al conectar con el servicio de clima.";
+            } finally {
+                mainBtn.disabled = false;
+            }
+
+        }, (err) => {
+            statusTxt.innerText = "Error: Acceso a ubicación denegado.";
+            mainBtn.disabled = false;
+        });
+    });
+
+    function renderForecast(daily) {
+        forecastList.innerHTML = '';
+        statusTxt.innerText = "Diagnóstico completado.";
+        forecastWrapper.style.display = 'block';
+
+        const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+        daily.time.forEach((dateStr, i) => {
+            const date = new Date(dateStr + "T00:00:00");
+            const dayName = days[date.getDay()];
+            const prob = daily.precipitation_probability_max[i];
             
-            let willRain = false;
-            let rainTime = null;
-            let hoursChecked = 0;
+            const card = document.createElement('div');
+            card.className = 'forecast-card';
+            // Resaltar si la probabilidad de lluvia es alta (>50%)
+            if(prob > 50) card.style.borderColor = 'var(--primary)';
 
-            // Recorrer el arreglo de horas
-            for (let i = 0; i < times.length; i++) {
-                const forecastTimeMs = new Date(times[i]).getTime();
-                
-                // Solo evaluar horas futuras a partir de este momento
-                if (forecastTimeMs >= nowMs && hoursChecked < 24) {
-                    hoursChecked++;
-                    
-                    if (precipitation[i] > 0) {
-                        willRain = true;
-                        // Formatear la hora encontrada
-                        const dateObj = new Date(times[i]);
-                        rainTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' (' + dateObj.toLocaleDateString() + ')';
-                        break;
-                    }
-                }
-            }
+            card.innerHTML = `
+                <div class="day-name">${dayName} ${date.getDate()}</div>
+                <div class="temp">${Math.round(daily.temperature_2m_max[i])}° / ${Math.round(daily.temperature_2m_min[i])}°</div>
+                <div class="rain-prob">💧 ${prob}%</div>
+            `;
+            forecastList.appendChild(card);
+        });
+    }
+</script>
 
-            if (willRain) {
-                resultDiv.innerHTML = `<span class="rain-yes">Sí lloverá.</span><br><small style="color:#666; margin-top:5px;">Primera lluvia esperada aprox. a las: <b>${rainTime}</b></small>`;
-            } else {
-                showResult("No lloverá en las próximas 24 horas.", "rain-no");
-            }
-            
-            button.disabled = false;
-        }
-
-        function showResult(message, className) {
-            resultDiv.innerHTML = `<span class="${className}">${message}</span>`;
-        }
-    </script>
 </body>
 </html>

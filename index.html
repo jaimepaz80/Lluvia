@@ -112,7 +112,7 @@
             border: 1px solid #e2e8f0;
             margin-top: 10px;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1050px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1150px; }
         th, td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; }
         th { background: #f8fafc; font-weight: 800; color: var(--primary); }
 
@@ -178,6 +178,7 @@
                         <th>Fecha</th>
                         <th>Temp Máx/Mín</th>
                         <th>Lluvia %</th>
+                        <th>Lluvia (mm)</th>
                         <th>Viento (km/h)</th>
                         <th>UV</th>
                         <th>Rad (MJ/m²)</th>
@@ -271,13 +272,13 @@
                 const reverseGeoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
                 const reverseGeoData = await reverseGeoRes.json();
                 const addr = reverseGeoData.address || {};
-                // Modificación quirúrgica: Extensión de variables geográficas para zonas rurales
                 knownCityName = addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.municipality || addr.state || "Área Geográfica Desconocida";
             } catch (e) { knownCityName = "Ubicación GPS"; }
         }
         document.getElementById('town').innerText = knownCityName;
 
-        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,uv_index_max,shortwave_radiation_sum,et0_fao_evapotranspiration,sunrise,sunset&hourly=precipitation&timezone=auto&forecast_days=16`;
+        // Se agrega precipitation_sum a la solicitud de la API
+        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,uv_index_max,shortwave_radiation_sum,et0_fao_evapotranspiration,sunrise,sunset&hourly=precipitation&timezone=auto&forecast_days=16`;
 
         try {
             const res = await fetch(api);
@@ -297,19 +298,24 @@
 
         daily.time.forEach((t, i) => {
             const date = new Date(t + "T00:00:00");
+            
+            // Renderización de Tarjetas
             cardList.innerHTML += `
                 <div class="card">
                     <div class="date">${date.toLocaleDateString('es', {weekday:'short', day:'numeric'})}</div>
                     <div class="temp">${Math.round(daily.temperature_2m_max[i])}°C</div>
                     <div style="color:var(--accent); font-weight:bold">💧 ${daily.precipitation_probability_max[i]}%</div>
+                    <div style="font-size:0.7rem; color:#64748b; margin-top:3px;">Vol: ${daily.precipitation_sum[i]} mm</div>
                 </div>
             `;
             
+            // Renderización de la Tabla
             tableBody.innerHTML += `
                 <tr>
                     <td>${t}</td>
                     <td>${daily.temperature_2m_max[i]} / ${daily.temperature_2m_min[i]} °C</td>
                     <td>${daily.precipitation_probability_max[i]}%</td>
+                    <td><b style="color:var(--accent)">${daily.precipitation_sum[i]} mm</b></td>
                     <td>${daily.wind_speed_10m_max[i]}</td>
                     <td>${daily.uv_index_max[i]}</td>
                     <td>${daily.shortwave_radiation_sum[i]}</td>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pronóstico de Lluvia 24H</title>
+    <style>
+        :root {
+            --primary-color: #007BFF;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        p {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .rain-yes { color: #d9534f; font-weight: bold; }
+        .rain-no { color: #5cb85c; font-weight: bold; }
+        .error { color: #f0ad4e; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>¿Lloverá hoy?</h1>
+        <p>Descubre si habrá precipitaciones en tu ubicación durante las próximas 24 horas.</p>
+        
+        <button id="checkWeatherBtn">Consultar Pronóstico</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const button = document.getElementById('checkWeatherBtn');
+        const resultDiv = document.getElementById('result');
+
+        button.addEventListener('click', () => {
+            // Limpiar resultados anteriores
+            resultDiv.innerHTML = 'Solicitando permisos de ubicación...';
+            resultDiv.className = '';
+            button.disabled = true;
+
+            // Verificar soporte de geolocalización
+            if (!navigator.geolocation) {
+                showResult("La geolocalización no es compatible con tu navegador.", "error");
+                button.disabled = false;
+                return;
+            }
+
+            // Solicitar ubicación
+            navigator.geolocation.getCurrentPosition(successLocation, errorLocation, {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        });
+
+        function successLocation(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            resultDiv.innerHTML = 'Ubicación obtenida. Consultando el clima...';
+            checkRainForecast(lat, lon);
+        }
+
+        function errorLocation(err) {
+            let msg = "No se pudo obtener la ubicación.";
+            if (err.code === 1) msg = "Permiso de ubicación denegado por el usuario.";
+            if (err.code === 2) msg = "Ubicación no disponible.";
+            if (err.code === 3) msg = "Tiempo de espera agotado al buscar ubicación.";
+            
+            showResult(msg, "error");
+            button.disabled = false;
+        }
+
+        async function checkRainForecast(lat, lon) {
+            // Usamos Open-Meteo API. Pedimos 2 días para garantizar 24 horas hacia adelante.
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation&timezone=auto&forecast_days=2`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Error en la respuesta de la API");
+                
+                const data = await response.json();
+                analyzeData(data);
+            } catch (error) {
+                showResult("Error al conectar con el servidor meteorológico.", "error");
+                button.disabled = false;
+            }
+        }
+
+        function analyzeData(data) {
+            const times = data.hourly.time;
+            const precipitation = data.hourly.precipitation;
+            const nowMs = Date.now();
+            
+            let willRain = false;
+            let rainTime = null;
+            let hoursChecked = 0;
+
+            // Recorrer el arreglo de horas
+            for (let i = 0; i < times.length; i++) {
+                const forecastTimeMs = new Date(times[i]).getTime();
+                
+                // Solo evaluar horas futuras a partir de este momento
+                if (forecastTimeMs >= nowMs && hoursChecked < 24) {
+                    hoursChecked++;
+                    
+                    if (precipitation[i] > 0) {
+                        willRain = true;
+                        // Formatear la hora encontrada
+                        const dateObj = new Date(times[i]);
+                        rainTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' (' + dateObj.toLocaleDateString() + ')';
+                        break;
+                    }
+                }
+            }
+
+            if (willRain) {
+                resultDiv.innerHTML = `<span class="rain-yes">Sí lloverá.</span><br><small style="color:#666; margin-top:5px;">Primera lluvia esperada aprox. a las: <b>${rainTime}</b></small>`;
+            } else {
+                showResult("No lloverá en las próximas 24 horas.", "rain-no");
+            }
+            
+            button.disabled = false;
+        }
+
+        function showResult(message, className) {
+            resultDiv.innerHTML = `<span class="${className}">${message}</span>`;
+        }
+    </script>
+</body>
+</html>

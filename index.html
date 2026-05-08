@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor Meteorológico Profesional - Jaime Ulises Paz López</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
             --primary: #1e40af;
@@ -24,7 +25,7 @@
         }
         .app-container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1100px;
             background: var(--card);
             border-radius: 24px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.1);
@@ -63,20 +64,23 @@
             font-size: 1rem;
             box-sizing: border-box;
         }
-        input[type="text"] {
-            flex: 1;
-            background: #f8fafc;
-        }
+        input[type="text"] { flex: 1; background: #f8fafc; }
         button.main-btn {
             background: var(--primary);
             color: white;
             border: none;
             font-weight: bold;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
-        button.main-btn:active { opacity: 0.8; }
         button.gps-btn { background: var(--accent); width: 100%; }
+
+        #map {
+            height: 250px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border: 2px solid #e2e8f0;
+            z-index: 1;
+        }
 
         .info-panel {
             background: #f0f9ff;
@@ -88,57 +92,26 @@
         }
 
         .cards-scroll {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            padding-bottom: 15px;
-            scrollbar-width: thin;
+            display: flex; gap: 12px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: thin;
         }
         .card {
-            min-width: 140px;
-            background: white;
-            border: 1px solid #e2e8f0;
-            padding: 15px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            min-width: 140px; background: white; border: 1px solid #e2e8f0; padding: 15px;
+            border-radius: 16px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         .card .date { font-weight: bold; font-size: 0.8rem; color: #64748b; }
         .card .temp { font-size: 1.3rem; font-weight: 800; color: #ef4444; margin: 5px 0; }
 
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-top: 10px;
-        }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1150px; }
-        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 1300px; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
         th { background: #f8fafc; font-weight: 800; color: var(--primary); }
+        .category-header { background: #eff6ff; font-weight: bold; color: var(--primary); border-left: 2px solid var(--accent); }
 
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 0.85rem;
-            color: #64748b;
-            padding-top: 20px;
-            border-top: 1px solid #f1f5f9;
-        }
+        .footer { text-align: center; margin-top: 30px; font-size: 0.85rem; color: #64748b; padding-top: 20px; border-top: 1px solid #f1f5f9; }
         .whatsapp-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--whatsapp);
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            margin-top: 10px;
-            font-size: 0.8rem;
-            transition: transform 0.2s;
+            display: inline-flex; align-items: center; justify-content: center; background-color: var(--whatsapp);
+            color: white; text-decoration: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin-top: 10px;
         }
-        .whatsapp-link:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -150,19 +123,18 @@
     </header>
 
     <div class="alert-panel" id="permissionPanel">
-        <div style="font-size: 0.85rem; margin-bottom: 10px; color: #be123c;">
-            <strong>⚠️ Alertas Desactivadas:</strong> Se requiere permiso para notificar lluvia inminente con sonido.
-        </div>
-        <button class="alert-btn" id="enableAlertsBtn">Activar Sistema de Alertas</button>
+        <button class="alert-btn" id="enableAlertsBtn">Activar Sistema de Alertas Sonoras</button>
     </div>
 
     <div class="controls">
         <button class="main-btn gps-btn" id="gpsBtn">📍 Usar mi ubicación actual (GPS)</button>
         <div class="search-row">
-            <input type="text" id="cityInput" placeholder="Ej. Carora, Maracaibo, Lima...">
+            <input type="text" id="cityInput" placeholder="Ciudad, Pueblo o Municipio...">
             <button class="main-btn" id="searchBtn">🔍 Buscar</button>
         </div>
     </div>
+
+    <div id="map"></div>
 
     <div id="locationDisplay" class="info-panel" style="display:none">
         <strong>🌐 Área de Análisis:</strong> <span id="town">Calculando...</span><br>
@@ -175,13 +147,27 @@
             <table>
                 <thead>
                     <tr>
+                        <th colspan="2" class="category-header">General</th>
+                        <th colspan="2" class="category-header">Térmico</th>
+                        <th colspan="4" class="category-header">Hídrico (Lluvias)</th>
+                        <th colspan="2" class="category-header">Eólico</th>
+                        <th colspan="4" class="category-header">Solar / Evapotranspiración</th>
+                        <th colspan="2" class="category-header">Astronomía</th>
+                    </tr>
+                    <tr>
                         <th>Fecha</th>
-                        <th>Temp Máx/Mín</th>
-                        <th>Lluvia %</th>
-                        <th>Lluvia (mm)</th>
-                        <th>Viento (km/h)</th>
+                        <th>Estado</th>
+                        <th>Máx</th>
+                        <th>Mín</th>
+                        <th>Prob. %</th>
+                        <th>Total mm</th>
+                        <th>Horas</th>
+                        <th>Chubascos</th>
+                        <th>Vel. km/h</th>
+                        <th>Dir. °</th>
                         <th>UV</th>
-                        <th>Rad (MJ/m²)</th>
+                        <th>Rad. MJ/m²</th>
+                        <th>Luz Efect.</th>
                         <th>Evap (mm)</th>
                         <th>Amanecer</th>
                         <th>Atardecer</th>
@@ -195,131 +181,122 @@
     <div class="footer">
         Acreditación Técnica: <strong>Jaime Ulises Paz López</strong><br>
         <small>Especialista en Sistemas Biofloc, RAS y Diseño Hidráulico</small><br>
-        <a href="https://wa.me/584121043327" class="whatsapp-link" target="_blank">
-            💬 Contactar por WhatsApp
-        </a>
+        <a href="https://wa.me/584121043327" class="whatsapp-link" target="_blank">💬 Contactar por WhatsApp</a>
     </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let alertsEnabled = false;
     let monitoringInterval = null;
-    let lastLat = null;
-    let lastLon = null;
+    let lastLat = null, lastLon = null;
+    let map, marker;
     const audioAlert = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6cXV4AAA=');
 
-    const enableAlertsBtn = document.getElementById('enableAlertsBtn');
-    const gpsBtn = document.getElementById('gpsBtn');
-    const searchBtn = document.getElementById('searchBtn');
-    const cityInput = document.getElementById('cityInput');
+    // Inicializar Mapa
+    function initMap(lat, lon) {
+        if (!map) {
+            map = L.map('map').setView([lat, lon], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            marker = L.marker([lat, lon]).addTo(map);
+        } else {
+            map.setView([lat, lon], 13);
+            marker.setLatLng([lat, lon]);
+        }
+    }
 
-    enableAlertsBtn.addEventListener('click', () => {
+    const wmoCodes = {
+        0: "Despejado", 1: "Mayormente Despejado", 2: "Parcialmente Nublado", 3: "Nublado",
+        45: "Niebla", 48: "Escarcha", 51: "Llovizna Ligera", 61: "Lluvia Ligera", 63: "Lluvia",
+        80: "Chubascos Ligeros", 81: "Chubascos", 95: "Tormenta", 96: "Tormenta con Granizo"
+    };
+
+    document.getElementById('enableAlertsBtn').addEventListener('click', () => {
         Notification.requestPermission().then(perm => {
             if(perm === 'granted') {
                 alertsEnabled = true;
                 document.getElementById('permissionPanel').style.display = 'none';
                 document.getElementById('alarmStatus').innerText = "🔴 Sistema de Alertas Activo";
-                document.getElementById('alarmStatus').style.color = "var(--danger)";
-                audioAlert.play().catch(()=>{});
                 startMonitoring();
             }
         });
     });
 
-    gpsBtn.addEventListener('click', () => {
-        document.getElementById('town').innerText = "Obteniendo coordenadas...";
-        navigator.geolocation.getCurrentPosition(
-            p => fetchWeather(p.coords.latitude, p.coords.longitude, null),
-            e => alert("Error al acceder al GPS.")
-        );
+    document.getElementById('gpsBtn').addEventListener('click', () => {
+        navigator.geolocation.getCurrentPosition(p => fetchWeather(p.coords.latitude, p.coords.longitude));
     });
 
-    searchBtn.addEventListener('click', async () => {
-        const query = cityInput.value.trim();
-        if(!query) return alert("Por favor escriba una ciudad.");
-        
-        document.getElementById('town').innerText = "Buscando...";
-        searchBtn.disabled = true;
-
-        try {
-            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es`);
-            const geoData = await geoRes.json();
-            
-            if(!geoData.results || geoData.results.length === 0) {
-                alert("Ciudad no encontrada.");
-                searchBtn.disabled = false;
-                return;
-            }
-            
-            const city = geoData.results[0];
-            fetchWeather(city.latitude, city.longitude, `${city.name}, ${city.country || ''}`);
-        } catch (e) {
-            alert("Error al buscar.");
-        } finally {
-            searchBtn.disabled = false;
-        }
+    document.getElementById('searchBtn').addEventListener('click', async () => {
+        const query = document.getElementById('cityInput').value;
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es`);
+        const data = await res.json();
+        if(data.results) fetchWeather(data.results[0].latitude, data.results[0].longitude, data.results[0].name);
     });
 
-    async function fetchWeather(lat, lon, knownCityName) {
-        lastLat = lat;
-        lastLon = lon;
-        
+    async function fetchWeather(lat, lon, knownName) {
+        lastLat = lat; lastLon = lon;
+        initMap(lat, lon);
         document.getElementById('coords').innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
         document.getElementById('locationDisplay').style.display = 'block';
-        
-        if (!knownCityName) {
-            try {
-                const reverseGeoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`);
-                const reverseGeoData = await reverseGeoRes.json();
-                const addr = reverseGeoData.address || {};
-                knownCityName = addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.municipality || addr.state || "Área Geográfica Desconocida";
-            } catch (e) { knownCityName = "Ubicación GPS"; }
-        }
-        document.getElementById('town').innerText = knownCityName;
 
-        // Se agrega precipitation_sum a la solicitud de la API
-        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,uv_index_max,shortwave_radiation_sum,et0_fao_evapotranspiration,sunrise,sunset&hourly=precipitation&timezone=auto&forecast_days=16`;
-
-        try {
-            const res = await fetch(api);
+        if(!knownName) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
             const data = await res.json();
-            renderData(data);
-            checkImmediateRain(data.hourly);
-        } catch (e) { alert("Error de conexión."); }
+            knownName = data.address.city || data.address.town || data.address.village || data.address.hamlet || data.address.county || "Área Rural";
+        }
+        document.getElementById('town').innerText = knownName;
+
+        const params = [
+            'weather_code', 'temperature_2m_max', 'temperature_2m_min',
+            'precipitation_probability_max', 'precipitation_sum', 'precipitation_hours', 'showers_sum',
+            'wind_speed_10m_max', 'wind_direction_10m_dominant',
+            'uv_index_max', 'shortwave_radiation_sum', 'sunshine_duration', 'et0_fao_evapotranspiration',
+            'sunrise', 'sunset'
+        ].join(',');
+
+        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${params}&hourly=precipitation&timezone=auto&forecast_days=16`;
+        const res = await fetch(api);
+        const data = await res.json();
+        renderData(data.daily);
+        checkImmediateRain(data.hourly);
     }
 
-    function renderData(data) {
-        const daily = data.daily;
+    function renderData(daily) {
         const cardList = document.getElementById('cardList');
         const tableBody = document.getElementById('tableBody');
-        cardList.innerHTML = '';
-        tableBody.innerHTML = '';
+        cardList.innerHTML = ''; tableBody.innerHTML = '';
         document.getElementById('results').style.display = 'block';
 
         daily.time.forEach((t, i) => {
             const date = new Date(t + "T00:00:00");
-            
-            // Renderización de Tarjetas
+            const condition = wmoCodes[daily.weather_code[i]] || "Variable";
+            const sunHrs = (daily.sunshine_duration[i] / 3600).toFixed(1);
+
             cardList.innerHTML += `
                 <div class="card">
                     <div class="date">${date.toLocaleDateString('es', {weekday:'short', day:'numeric'})}</div>
                     <div class="temp">${Math.round(daily.temperature_2m_max[i])}°C</div>
+                    <div style="font-size:0.7rem; color:#64748b">${condition}</div>
                     <div style="color:var(--accent); font-weight:bold">💧 ${daily.precipitation_probability_max[i]}%</div>
-                    <div style="font-size:0.7rem; color:#64748b; margin-top:3px;">Vol: ${daily.precipitation_sum[i]} mm</div>
                 </div>
             `;
-            
-            // Renderización de la Tabla
+
             tableBody.innerHTML += `
                 <tr>
-                    <td>${t}</td>
-                    <td>${daily.temperature_2m_max[i]} / ${daily.temperature_2m_min[i]} °C</td>
-                    <td>${daily.precipitation_probability_max[i]}%</td>
-                    <td><b style="color:var(--accent)">${daily.precipitation_sum[i]} mm</b></td>
+                    <td><b>${t}</b></td>
+                    <td>${condition}</td>
+                    <td style="color:#ef4444"><b>${daily.temperature_2m_max[i]}</b></td>
+                    <td style="color:#3b82f6">${daily.temperature_2m_min[i]}</td>
+                    <td><b>${daily.precipitation_probability_max[i]}%</b></td>
+                    <td style="color:blue">${daily.precipitation_sum[i]} mm</td>
+                    <td>${daily.precipitation_hours[i]} h</td>
+                    <td>${daily.showers_sum[i]} mm</td>
                     <td>${daily.wind_speed_10m_max[i]}</td>
-                    <td>${daily.uv_index_max[i]}</td>
+                    <td>${daily.wind_direction_10m_dominant[i]}°</td>
+                    <td><b style="color:orange">${daily.uv_index_max[i]}</b></td>
                     <td>${daily.shortwave_radiation_sum[i]}</td>
-                    <td>${daily.et0_fao_evapotranspiration[i]}</td>
+                    <td>${sunHrs} h</td>
+                    <td><b style="color:green">${daily.et0_fao_evapotranspiration[i]}</b></td>
                     <td>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                     <td>${new Date(daily.sunset[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                 </tr>
@@ -328,35 +305,18 @@
     }
 
     function checkImmediateRain(hourly) {
-        const now = new Date();
-        const nextHour = new Date(now.getTime() + (60 * 60 * 1000));
-        const index = hourly.time.findIndex(t => new Date(t).getTime() >= nextHour.getTime());
-        if(index !== -1 && hourly.precipitation[index] > 0) {
-            triggerAlert(hourly.precipitation[index]);
-        }
-    }
-
-    function triggerAlert(amount) {
-        if(!alertsEnabled) return;
-        new Notification("⚠️ ALERTA DE LLUVIA", {
-            body: `Precipitación inminente (${amount}mm) detectada.`,
-            icon: "https://cdn-icons-png.flaticon.com/512/3217/3217112.png"
-        });
-        let count = 0;
-        const interval = setInterval(() => {
+        const nextH = hourly.time.findIndex(t => new Date(t).getTime() >= Date.now() + 3600000);
+        if(nextH !== -1 && hourly.precipitation[nextH] > 0 && alertsEnabled) {
+            new Notification("⚠️ ALERTA DE LLUVIA", { body: `Lluvia detectada en la próxima hora (${hourly.precipitation[nextH]}mm).` });
             audioAlert.play();
-            count++;
-            if(count > 3) clearInterval(interval);
-        }, 1000);
+        }
     }
 
     function startMonitoring() {
         if(monitoringInterval) clearInterval(monitoringInterval);
-        monitoringInterval = setInterval(() => {
-            if(lastLat && lastLon) fetchWeather(lastLat, lastLon, document.getElementById('town').innerText);
-        }, 30 * 60 * 1000);
+        monitoringInterval = setInterval(() => { if(lastLat) fetchWeather(lastLat, lastLon, document.getElementById('town').innerText); }, 30 * 60 * 1000);
     }
 </script>
-
 </body>
 </html>
+

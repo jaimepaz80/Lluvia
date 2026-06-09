@@ -101,6 +101,16 @@
         .card .date { font-weight: bold; font-size: 0.8rem; color: #64748b; }
         .card .temp { font-size: 1.3rem; font-weight: 800; color: #ef4444; margin: 5px 0; }
 
+        /* Estilos inyectados: Carrusel Horario */
+        .hourly-wrapper { margin-bottom: 20px; }
+        .hourly-header { font-size: 1rem; color: var(--primary); font-weight: bold; margin-bottom: 10px; border-left: 3px solid var(--accent); padding-left: 8px; }
+        .hourly-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
+        .hour-card { min-width: 70px; background: white; border: 1px solid #cbd5e1; padding: 10px 5px; border-radius: 12px; text-align: center; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-shrink: 0; }
+        .hour-card .day { font-size: 0.65rem; color: #64748b; text-transform: uppercase; }
+        .hour-card .time { font-weight: bold; color: #1e293b; margin: 4px 0; }
+        .hour-card .rain { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
+        .hour-card.rainy { background: #eff6ff; border-color: #93c5fd; }
+
         .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 1300px; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
@@ -151,6 +161,12 @@
     </div>
 
     <div id="results" style="display:none">
+        
+        <div class="hourly-wrapper">
+            <div class="hourly-header">⏳ Pronóstico de Lluvias (Próximas 72h)</div>
+            <div class="hourly-scroll" id="hourlyList"></div>
+        </div>
+
         <div class="cards-scroll" id="cardList"></div>
         <div class="table-wrapper">
             <table>
@@ -277,15 +293,48 @@
         const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${params}&hourly=precipitation&timezone=auto&forecast_days=16`;
         const res = await fetch(api);
         const data = await res.json();
-        renderData(data.daily);
+        
+        // Modificación: Pasar data.hourly a renderData
+        renderData(data.daily, data.hourly);
         checkImmediateRain(data.hourly);
     }
 
-    function renderData(daily) {
+    // Modificación: Receptor de data horaria y bucle de 72 horas
+    function renderData(daily, hourly) {
         const cardList = document.getElementById('cardList');
         const tableBody = document.getElementById('tableBody');
-        cardList.innerHTML = ''; tableBody.innerHTML = '';
+        const hourlyList = document.getElementById('hourlyList');
+        
+        cardList.innerHTML = ''; 
+        tableBody.innerHTML = ''; 
+        hourlyList.innerHTML = '';
+        
         document.getElementById('results').style.display = 'block';
+
+        // Procesamiento del Array Horario (Límite 72 horas)
+        const now = Date.now();
+        let hoursAdded = 0;
+        
+        for (let i = 0; i < hourly.time.length; i++) {
+            const hourTime = new Date(hourly.time[i]).getTime();
+            
+            if (hourTime >= now && hoursAdded < 72) {
+                const dateObj = new Date(hourly.time[i]);
+                const hourStr = dateObj.toLocaleTimeString('es', {hour: '2-digit', minute:'2-digit'});
+                const dayStr = dateObj.toLocaleDateString('es', {weekday: 'short'});
+                const rain = hourly.precipitation[i];
+                const isRainy = rain > 0 ? 'rainy' : '';
+                
+                hourlyList.innerHTML += `
+                    <div class="hour-card ${isRainy}">
+                        <div class="day">${dayStr}</div>
+                        <div class="time">${hourStr}</div>
+                        <div class="rain">${rain} mm</div>
+                    </div>
+                `;
+                hoursAdded++;
+            }
+        }
 
         daily.time.forEach((t, i) => {
             const date = new Date(t + "T00:00:00");
@@ -339,5 +388,3 @@
 </script>
 </body>
 </html>
-
-

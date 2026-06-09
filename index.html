@@ -101,16 +101,6 @@
         .card .date { font-weight: bold; font-size: 0.8rem; color: #64748b; }
         .card .temp { font-size: 1.3rem; font-weight: 800; color: #ef4444; margin: 5px 0; }
 
-        /* Estilos inyectados: Carrusel Horario */
-        .hourly-wrapper { margin-bottom: 20px; }
-        .hourly-header { font-size: 1rem; color: var(--primary); font-weight: bold; margin-bottom: 10px; border-left: 3px solid var(--accent); padding-left: 8px; }
-        .hourly-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
-        .hour-card { min-width: 70px; background: white; border: 1px solid #cbd5e1; padding: 10px 5px; border-radius: 12px; text-align: center; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-shrink: 0; }
-        .hour-card .day { font-size: 0.65rem; color: #64748b; text-transform: uppercase; }
-        .hour-card .time { font-weight: bold; color: #1e293b; margin: 4px 0; }
-        .hour-card .rain { color: var(--accent); font-weight: 800; font-size: 0.9rem; }
-        .hour-card.rainy { background: #eff6ff; border-color: #93c5fd; }
-
         .table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 1300px; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
@@ -161,12 +151,6 @@
     </div>
 
     <div id="results" style="display:none">
-        
-        <div class="hourly-wrapper">
-            <div class="hourly-header">⏳ Pronóstico de Lluvias (Próximas 72h)</div>
-            <div class="hourly-scroll" id="hourlyList"></div>
-        </div>
-
         <div class="cards-scroll" id="cardList"></div>
         <div class="table-wrapper">
             <table>
@@ -282,7 +266,7 @@
         }
         document.getElementById('town').innerText = knownName;
 
-        const params = [
+        const paramsDaily = [
             'weather_code', 'temperature_2m_max', 'temperature_2m_min',
             'precipitation_probability_max', 'precipitation_sum', 'precipitation_hours', 'showers_sum',
             'wind_speed_10m_max', 'wind_direction_10m_dominant',
@@ -290,86 +274,92 @@
             'sunrise', 'sunset'
         ].join(',');
 
-        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${params}&hourly=precipitation&timezone=auto&forecast_days=16`;
+        const paramsHourly = [
+            'precipitation', 'weather_code', 'temperature_2m', 'precipitation_probability', 'showers',
+            'wind_speed_10m', 'wind_direction_10m', 'uv_index', 'shortwave_radiation', 'et0_fao_evapotranspiration'
+        ].join(',');
+
+        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${paramsDaily}&hourly=${paramsHourly}&timezone=auto&forecast_days=4`;
         const res = await fetch(api);
         const data = await res.json();
         
-        // Modificación: Pasar data.hourly a renderData
         renderData(data.daily, data.hourly);
         checkImmediateRain(data.hourly);
     }
 
-    // Modificación: Receptor de data horaria y bucle de 72 horas
     function renderData(daily, hourly) {
         const cardList = document.getElementById('cardList');
         const tableBody = document.getElementById('tableBody');
-        const hourlyList = document.getElementById('hourlyList');
-        
-        cardList.innerHTML = ''; 
-        tableBody.innerHTML = ''; 
-        hourlyList.innerHTML = '';
-        
+        cardList.innerHTML = ''; tableBody.innerHTML = '';
         document.getElementById('results').style.display = 'block';
-
-        // Procesamiento del Array Horario (Límite 72 horas)
-        const now = Date.now();
-        let hoursAdded = 0;
-        
-        for (let i = 0; i < hourly.time.length; i++) {
-            const hourTime = new Date(hourly.time[i]).getTime();
-            
-            if (hourTime >= now && hoursAdded < 72) {
-                const dateObj = new Date(hourly.time[i]);
-                const hourStr = dateObj.toLocaleTimeString('es', {hour: '2-digit', minute:'2-digit'});
-                const dayStr = dateObj.toLocaleDateString('es', {weekday: 'short'});
-                const rain = hourly.precipitation[i];
-                const isRainy = rain > 0 ? 'rainy' : '';
-                
-                hourlyList.innerHTML += `
-                    <div class="hour-card ${isRainy}">
-                        <div class="day">${dayStr}</div>
-                        <div class="time">${hourStr}</div>
-                        <div class="rain">${rain} mm</div>
-                    </div>
-                `;
-                hoursAdded++;
-            }
-        }
 
         daily.time.forEach((t, i) => {
             const date = new Date(t + "T00:00:00");
-            const condition = wmoCodes[daily.weather_code[i]] || "Variable";
-            const sunHrs = (daily.sunshine_duration[i] / 3600).toFixed(1);
+            const conditionDay = wmoCodes[daily.weather_code[i]] || "Variable";
+            const sunHrsDay = (daily.sunshine_duration[i] / 3600).toFixed(1);
 
             cardList.innerHTML += `
                 <div class="card">
                     <div class="date">${date.toLocaleDateString('es', {weekday:'short', day:'numeric'})}</div>
                     <div class="temp">${Math.round(daily.temperature_2m_max[i])}°C</div>
-                    <div style="font-size:0.7rem; color:#64748b">${condition}</div>
+                    <div style="font-size:0.7rem; color:#64748b">${conditionDay}</div>
                     <div style="color:var(--accent); font-weight:bold">💧 ${daily.precipitation_probability_max[i]}%</div>
                 </div>
             `;
 
             tableBody.innerHTML += `
-                <tr>
-                    <td><b>${t}</b></td>
-                    <td>${condition}</td>
-                    <td style="color:#ef4444"><b>${daily.temperature_2m_max[i]}</b></td>
-                    <td style="color:#3b82f6">${daily.temperature_2m_min[i]}</td>
+                <tr style="background-color: #eff6ff; border-top: 3px solid #cbd5e1;">
+                    <td><b style="color: var(--primary);">${t} <br>00:00 (Diario)</b></td>
+                    <td><b>${conditionDay}</b></td>
+                    <td style="color:#ef4444"><b>${daily.temperature_2m_max[i]}°C</b></td>
+                    <td style="color:#3b82f6"><b>${daily.temperature_2m_min[i]}°C</b></td>
                     <td><b>${daily.precipitation_probability_max[i]}%</b></td>
-                    <td style="color:blue">${daily.precipitation_sum[i]} mm</td>
-                    <td>${daily.precipitation_hours[i]} h</td>
-                    <td>${daily.showers_sum[i]} mm</td>
-                    <td>${daily.wind_speed_10m_max[i]}</td>
-                    <td>${daily.wind_direction_10m_dominant[i]}°</td>
+                    <td style="color:blue"><b>${daily.precipitation_sum[i]} mm</b></td>
+                    <td><b>${daily.precipitation_hours[i]} h</b></td>
+                    <td><b>${daily.showers_sum[i]} mm</b></td>
+                    <td><b>${daily.wind_speed_10m_max[i]}</b></td>
+                    <td><b>${daily.wind_direction_10m_dominant[i]}°</b></td>
                     <td><b style="color:orange">${daily.uv_index_max[i]}</b></td>
-                    <td>${daily.shortwave_radiation_sum[i]}</td>
-                    <td>${sunHrs} h</td>
+                    <td><b>${daily.shortwave_radiation_sum[i]}</b></td>
+                    <td><b>${sunHrsDay} h</b></td>
                     <td><b style="color:green">${daily.et0_fao_evapotranspiration[i]}</b></td>
-                    <td>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                    <td>${new Date(daily.sunset[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                    <td><b>${new Date(daily.sunrise[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b></td>
+                    <td><b>${new Date(daily.sunset[i]).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b></td>
                 </tr>
             `;
+
+            for(let h = 1; h <= 23; h++) {
+                const j = i * 24 + h; 
+                
+                if (j >= hourly.time.length) break; 
+
+                const hourDate = new Date(hourly.time[j]);
+                const hourStr = hourDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const conditionH = wmoCodes[hourly.weather_code[j]] || "Variable";
+                
+                const isRaining = hourly.precipitation[j] > 0 ? "background-color: #f8fafc;" : "";
+
+                tableBody.innerHTML += `
+                    <tr style="${isRaining}">
+                        <td style="padding-left: 15px; color: #64748b;">↳ ${hourStr}</td>
+                        <td style="font-size: 0.75rem;">${conditionH}</td>
+                        <td style="color:#ef4444">${hourly.temperature_2m[j]}°C</td>
+                        <td style="color:#cbd5e1">-</td>
+                        <td><b>${hourly.precipitation_probability[j]}%</b></td>
+                        <td style="color:blue">${hourly.precipitation[j]} mm</td>
+                        <td style="color:#cbd5e1">-</td>
+                        <td>${hourly.showers[j]} mm</td>
+                        <td>${hourly.wind_speed_10m[j]}</td>
+                        <td>${hourly.wind_direction_10m[j]}°</td>
+                        <td><b style="color:orange">${hourly.uv_index[j]}</b></td>
+                        <td>${hourly.shortwave_radiation[j]}</td>
+                        <td style="color:#cbd5e1">-</td>
+                        <td><b style="color:green">${hourly.et0_fao_evapotranspiration[j]}</b></td>
+                        <td style="color:#cbd5e1">-</td>
+                        <td style="color:#cbd5e1">-</td>
+                    </tr>
+                `;
+            }
         });
     }
 

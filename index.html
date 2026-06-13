@@ -279,7 +279,8 @@
             'wind_speed_10m', 'wind_direction_10m', 'uv_index', 'shortwave_radiation', 'et0_fao_evapotranspiration'
         ].join(',');
 
-        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${paramsDaily}&hourly=${paramsHourly}&timezone=auto&forecast_days=4`;
+        // Horizonte proyectado a 16 días
+        const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${paramsDaily}&hourly=${paramsHourly}&timezone=auto&forecast_days=16`;
         const res = await fetch(api);
         const data = await res.json();
         
@@ -328,37 +329,40 @@
                 </tr>
             `;
 
-            for(let h = 1; h <= 23; h++) {
-                const j = i * 24 + h; 
-                
-                if (j >= hourly.time.length) break; 
+            // Condicional: Desglose horario exclusivo para los días 1 al 4 (índices 0, 1, 2, 3)
+            if (i < 4) {
+                for(let h = 1; h <= 23; h++) {
+                    const j = i * 24 + h; 
+                    
+                    if (j >= hourly.time.length) break; 
 
-                const hourDate = new Date(hourly.time[j]);
-                const hourStr = hourDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                const conditionH = wmoCodes[hourly.weather_code[j]] || "Variable";
-                
-                const isRaining = hourly.precipitation[j] > 0 ? "background-color: #f8fafc;" : "";
+                    const hourDate = new Date(hourly.time[j]);
+                    const hourStr = hourDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const conditionH = wmoCodes[hourly.weather_code[j]] || "Variable";
+                    
+                    const isRaining = hourly.precipitation[j] > 0 ? "background-color: #f8fafc;" : "";
 
-                tableBody.innerHTML += `
-                    <tr style="${isRaining}">
-                        <td style="padding-left: 15px; color: #64748b;">↳ ${hourStr}</td>
-                        <td style="font-size: 0.75rem;">${conditionH}</td>
-                        <td style="color:#ef4444">${hourly.temperature_2m[j]}°C</td>
-                        <td style="color:#cbd5e1">-</td>
-                        <td><b>${hourly.precipitation_probability[j]}%</b></td>
-                        <td style="color:blue">${hourly.precipitation[j]} mm</td>
-                        <td style="color:#cbd5e1">-</td>
-                        <td>${hourly.showers[j]} mm</td>
-                        <td>${hourly.wind_speed_10m[j]}</td>
-                        <td>${hourly.wind_direction_10m[j]}°</td>
-                        <td><b style="color:orange">${hourly.uv_index[j]}</b></td>
-                        <td>${hourly.shortwave_radiation[j]}</td>
-                        <td style="color:#cbd5e1">-</td>
-                        <td><b style="color:green">${hourly.et0_fao_evapotranspiration[j]}</b></td>
-                        <td style="color:#cbd5e1">-</td>
-                        <td style="color:#cbd5e1">-</td>
-                    </tr>
-                `;
+                    tableBody.innerHTML += `
+                        <tr style="${isRaining}">
+                            <td style="padding-left: 15px; color: #64748b;">↳ ${hourStr}</td>
+                            <td style="font-size: 0.75rem;">${conditionH}</td>
+                            <td style="color:#ef4444">${hourly.temperature_2m[j]}°C</td>
+                            <td style="color:#cbd5e1">-</td>
+                            <td><b>${hourly.precipitation_probability[j]}%</b></td>
+                            <td style="color:blue">${hourly.precipitation[j]} mm</td>
+                            <td style="color:#cbd5e1">-</td>
+                            <td>${hourly.showers[j]} mm</td>
+                            <td>${hourly.wind_speed_10m[j]}</td>
+                            <td>${hourly.wind_direction_10m[j]}°</td>
+                            <td><b style="color:orange">${hourly.uv_index[j]}</b></td>
+                            <td>${hourly.shortwave_radiation[j]}</td>
+                            <td style="color:#cbd5e1">-</td>
+                            <td><b style="color:green">${hourly.et0_fao_evapotranspiration[j]}</b></td>
+                            <td style="color:#cbd5e1">-</td>
+                            <td style="color:#cbd5e1">-</td>
+                        </tr>
+                    `;
+                }
             }
         });
     }

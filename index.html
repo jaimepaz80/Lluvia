@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor Meteorológico Profesional - Jaime Ulises Paz López</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
         :root {
             --primary: #1e40af;
@@ -13,6 +18,7 @@
             --bg: #f8fafc;
             --card: #ffffff;
             --whatsapp: #25d366;
+            --success: #059669;
         }
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
@@ -71,8 +77,11 @@
             border: none;
             font-weight: bold;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
+        button.main-btn:active { opacity: 0.8; }
         button.gps-btn { background: var(--accent); width: 100%; }
+        button.pdf-btn { background: var(--success); width: 100%; font-size: 1.05rem;}
 
         #map {
             height: 250px;
@@ -136,6 +145,7 @@
     </div>
 
     <div class="controls">
+        <button class="main-btn pdf-btn" id="pdfBtn">📄 Descargar Reporte de Lluvias (16 Días) en PDF</button>
         <button class="main-btn gps-btn" id="gpsBtn">📍 Usar mi ubicación actual (GPS)</button>
         <div class="search-row">
             <input type="text" id="cityInput" placeholder="Ciudad, Pueblo o Municipio...">
@@ -205,12 +215,12 @@
     </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let alertsEnabled = false;
     let monitoringInterval = null;
     let lastLat = null, lastLon = null;
     let map, marker;
+    let currentDailyData = null; // Variable global para almacenar datos del PDF
     const audioAlert = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6cXV4AAA=');
 
     // Inicializar Mapa
@@ -248,6 +258,7 @@
 
     document.getElementById('searchBtn').addEventListener('click', async () => {
         const query = document.getElementById('cityInput').value;
+        if(!query) return;
         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es`);
         const data = await res.json();
         if(data.results) fetchWeather(data.results[0].latitude, data.results[0].longitude, data.results[0].name);
@@ -279,11 +290,14 @@
             'wind_speed_10m', 'wind_direction_10m', 'uv_index', 'shortwave_radiation', 'et0_fao_evapotranspiration'
         ].join(',');
 
-        // Horizonte proyectado a 16 días
+        // Petición a 16 días
         const api = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=${paramsDaily}&hourly=${paramsHourly}&timezone=auto&forecast_days=16`;
         const res = await fetch(api);
         const data = await res.json();
         
+        // Almacenar en memoria para el PDF
+        currentDailyData = data.daily;
+
         renderData(data.daily, data.hourly);
         checkImmediateRain(data.hourly);
     }
@@ -329,7 +343,7 @@
                 </tr>
             `;
 
-            // Condicional: Desglose horario exclusivo para los días 1 al 4 (índices 0, 1, 2, 3)
+            // Lógica de renderizado: Filtro de 4 días (0 a 3) para evitar colapso del DOM
             if (i < 4) {
                 for(let h = 1; h <= 23; h++) {
                     const j = i * 24 + h; 
@@ -379,6 +393,55 @@
         if(monitoringInterval) clearInterval(monitoringInterval);
         monitoringInterval = setInterval(() => { if(lastLat) fetchWeather(lastLat, lastLon, document.getElementById('town').innerText); }, 30 * 60 * 1000);
     }
+
+    // Lógica del Botón PDF
+    document.getElementById('pdfBtn').addEventListener('click', () => {
+        // Bloqueo de seguridad: Evita la ejecución si no hay matriz de datos
+        if (!currentDailyData) {
+            alert("⚠️ Error Técnico: Debes realizar una búsqueda de ubicación (por GPS o manual) antes de poder descargar el pronóstico de 16 días.");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const townName = document.getElementById('town').innerText;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("Reporte de Probabilidad de Lluvia (Proyección 16 Días)", 14, 15);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Zona de Análisis: ${townName}`, 14, 22);
+        doc.text(`Fecha de Emisión: ${new Date().toLocaleDateString('es')}`, 14, 27);
+
+        const tableData = currentDailyData.time.map((dateStr, index) => {
+            const date = new Date(dateStr + "T00:00:00").toLocaleDateString('es', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+            const prob = currentDailyData.precipitation_probability_max[index];
+            const probText = prob > 50 ? `${prob}% (ALTO RIESGO)` : `${prob}%`;
+            return [date, probText];
+        });
+
+        doc.autoTable({
+            startY: 32,
+            head: [['Fecha Proyectada', 'Probabilidad Máxima de Precipitaciones']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            didParseCell: function(data) {
+                if (data.section === 'body' && data.column.index === 1) {
+                    const value = parseInt(data.cell.raw);
+                    if (value > 50) {
+                        data.cell.styles.textColor = [225, 29, 72];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            }
+        });
+
+        doc.save(`Pronostico_Lluvias_${townName.replace(/\s+/g, '_')}.pdf`);
+    });
 </script>
 </body>
 </html>

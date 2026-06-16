@@ -63,14 +63,14 @@
         .controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
         .search-row { display: flex; gap: 10px; }
         
-        input[type="text"], button.main-btn {
+        input[type="text"], input[type="number"], button.main-btn {
             padding: 15px;
             border-radius: 12px;
             border: 1px solid #cbd5e1;
             font-size: 1rem;
             box-sizing: border-box;
         }
-        input[type="text"] { flex: 1; background: #f8fafc; }
+        input[type="text"], input[type="number"] { flex: 1; background: #f8fafc; }
         button.main-btn {
             background: var(--primary);
             color: white;
@@ -150,6 +150,11 @@
         <div class="search-row">
             <input type="text" id="cityInput" placeholder="Ciudad, Pueblo o Municipio...">
             <button class="main-btn" id="searchBtn">🔍 Buscar</button>
+        </div>
+        <div class="search-row">
+            <input type="number" id="latInput" step="any" placeholder="Latitud (ej: 10.15717518)">
+            <input type="number" id="lonInput" step="any" placeholder="Longitud (ej: -71.90467469)">
+            <button class="main-btn" id="coordBtn" style="background-color: #475569;">📌 Ir a Coordenadas</button>
         </div>
     </div>
 
@@ -262,6 +267,23 @@
         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es`);
         const data = await res.json();
         if(data.results) fetchWeather(data.results[0].latitude, data.results[0].longitude, data.results[0].name);
+    });
+
+    document.getElementById('coordBtn').addEventListener('click', () => {
+        const lat = parseFloat(document.getElementById('latInput').value);
+        const lon = parseFloat(document.getElementById('lonInput').value);
+        
+        if (isNaN(lat) || isNaN(lon)) {
+            alert("⚠️ Error: Campos vacíos o no numéricos. Ingrese coordenadas válidas.");
+            return;
+        }
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            alert("⚠️ Error de Proporción Geográfica: Latitud debe operar entre -90 y 90, Longitud entre -180 y 180.");
+            return;
+        }
+        
+        // Pasa directamente a la API saltando la geocodificación
+        fetchWeather(lat, lon, `Ubicación Manual (${lat.toFixed(6)}, ${lon.toFixed(6)})`);
     });
 
     async function fetchWeather(lat, lon, knownName) {
